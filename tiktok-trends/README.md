@@ -29,7 +29,8 @@
 tiktok-trends/
 ├── README.md                  # 本文件
 ├── RYTHMIX_PLAYBOOK.md        # ★ 核心：把热点变成 Rythmix 内容的规则 + 版权红线
-├── SETUP-LOCAL-SCRAPER.md     # ★ 每周怎么用（本地·双击版）—— 先看这个
+├── extension/                 # ★ Chrome 插件（最方便）：点一下抓各国前十 → 复制 → 粘给 Claude
+├── SETUP-LOCAL-SCRAPER.md     # 本地·双击版教程（不想用插件时的备选）
 ├── run-windows.bat            # Windows：双击运行（抓榜）
 ├── run-mac.command            # Mac：双击运行（抓榜）
 ├── config/
@@ -64,9 +65,10 @@ node tiktok-trends/scripts/new-week.mjs
 
 | 方式 | 怎么做 | 适合 |
 |------|--------|------|
-| **A. 手动贴**（默认/最省事） | 照旧打开 [Creative Center Trends](https://ads.tiktok.com/creative/creativeCenter/trends)，把各国前十/前十五的词复制进 `input-keywords.md` 对应国家下 | 任何环境，零维护 |
-| **B. 本地双击**（✅ 推荐/已选） | 在**你自己电脑**上双击 `run-windows.bat`（Mac: `run-mac.command`）：自动抓各国前十、复制到剪贴板，第一次登录一次即可。教程 [`SETUP-LOCAL-SCRAPER.md`](./SETUP-LOCAL-SCRAPER.md) | 想全自动、风险最低 |
-| **C. 联网搜索近似** | 让 AI 用 WebSearch + 第三方趋势站凑近似榜 | 临时、手头没榜单时 |
+| **A. Chrome 插件**（✅ 最方便/推荐） | 装一次 [`extension/`](./extension/) → 点工具栏图标 → 自动抓 12 国前十、复制到剪贴板 → 粘给 Claude。用你已登录的浏览器，免装 Node、风险最低 | 日常首选 |
+| **B. 本地双击脚本** | 双击 `run-windows.bat`（Mac: `run-mac.command`），第一次登录一次。教程 [`SETUP-LOCAL-SCRAPER.md`](./SETUP-LOCAL-SCRAPER.md) | 不想装插件时 |
+| **C. 手动贴** | 照旧打开 Creative Center，把各国前十复制进 `input-keywords.md` | 临时/兜底 |
+| **D. 联网搜索近似** | 让 AI 用 WebSearch + 第三方趋势站凑近似榜 | 手头没榜单时 |
 
 > ⚠️ 为什么不能在云端（Claude Code web）直接爬：Creative Center 的趋势接口要浏览器签名，
 > 且本云沙箱的 Chromium 走不通出口代理（TLS 握手被代理在 ClientHello 阶段断连，属基础设施限制）。

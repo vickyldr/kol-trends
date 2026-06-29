@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { width: 300px; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; padding: 14px; margin: 0; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    .sub { font-size: 12px; color: #666; margin: 0 0 12px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+    select, input { font-size: 13px; padding: 3px 6px; }
+    input[type=number] { width: 56px; }
+    button { font-size: 14px; padding: 9px 12px; width: 100%; border: 0; border-radius: 8px; cursor: pointer; }
+    #go { background: #fe2c55; color: #fff; font-weight: 600; }
+    #go:disabled { background: #ccc; }
+    #copy { background: #111; color: #fff; margin-top: 8px; display: none; }
+    #status { font-size: 12px; color: #333; margin-top: 10px; white-space: pre-wrap; min-height: 18px; }
+    .tip { font-size: 11px; color: #888; margin-top: 10px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>Rythmix 热点收集器</h1>
+  <p class="sub">一键抓各国 Hashtag 前十 → 复制 → 粘给 Claude</p>
+
+  <div class="row">
+    时间范围
+    <select id="period">
+      <option value="7" selected>最近 7 天</option>
+      <option value="30">最近 30 天</option>
+      <option value="120">最近 120 天</option>
+    </select>
+    取前 <input id="topN" type="number" value="15" min="5" max="50" /> 个
+  </div>
+
+  <button id="go">开始抓取</button>
+  <button id="copy">📋 复制到剪贴板</button>
+  <div id="status"></div>
+  <p class="tip">先确保你已在 ads.tiktok.com 登录（建议用单独 business 账号）。抓取时会在后台开一个标签页轮流切换各国，跑完自动关闭。完成后点「复制」，去 Claude 粘贴并说「出本周周报」。</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
