@@ -33,7 +33,8 @@ tiktok-trends/
 │   └── countries.json         # 要追踪的国家清单（可改）
 ├── templates/
 │   ├── input-keywords.md      # 「贴名单」用的输入模板
-│   └── report.md              # 周报输出模板
+│   ├── report.md              # 周报输出模板（对齐挖掘表「0 总填写表」）
+│   └── ideas.csv              # 可直接导入飞书挖掘表的 CSV 表头
 ├── prompts/
 │   └── analyze-week.md        # 给 AI 的主提示词（喂它输入 → 出周报）
 ├── scripts/
@@ -42,7 +43,8 @@ tiktok-trends/
 └── weeks/
     └── 2026-W27/              # 每周一个文件夹
         ├── input-keywords.md  # 各国前十词贴这里
-        └── report.md          # AI 产出的周报
+        ├── report.md          # AI 产出的周报（含「挖掘表」主表）
+        └── ideas.csv          # AI 产出的可导入 CSV（对齐飞书挖掘表列）
 ```
 
 ---
@@ -69,9 +71,14 @@ node tiktok-trends/scripts/new-week.mjs
 
 ### Step 2 — 让 AI 出周报
 把 [`prompts/analyze-week.md`](./prompts/analyze-week.md) 连同本周 `input-keywords.md` 交给 Claude，
-它会按 playbook 生成 `report.md`。在 Claude Code 里直接说：
+它会按 playbook 生成 `report.md`（含「挖掘表」主表）和 `ideas.csv`（可直接导入飞书挖掘表）。
+在 Claude Code 里直接说：
 
-> "按 tiktok-trends/prompts/analyze-week.md 分析 weeks/2026-W27/input-keywords.md，写出 report.md"
+> "按 tiktok-trends/prompts/analyze-week.md 分析 weeks/2026-W27/input-keywords.md，写出 report.md 和 ideas.csv"
+
+**输出字段对齐你们的挖掘表「0 总填写表」**：来源国家 · 投放地区 · idea描述 · 主推功能点
+(文生音乐/AI mv/AI驱动/音色克隆) · 修改要点及数量 · 音频风格 · 视频链接 · 版权。
+执行/运营列（设计直用·KOL选用·Fiverr采买·缩略图·附件·填写人·竞品·渠道·进度·时间）落地时再填，不输出。
 
 ---
 
@@ -82,7 +89,7 @@ node tiktok-trends/scripts/new-week.mjs
 | 各国热搜词获取 | 🟡 半自动 | 云端爬不了；本机爬虫可以，或手动贴（最稳） |
 | 逐词翻译 | 🟢 全自动 | AI |
 | "这词在 TT 上到底在火什么" | 🟢 多数自动 | AI + 联网搜索；冷门词偶尔要人工补一句 |
-| 想 Rythmix 蹭法（AI MV / 大字报 / 翻跳 / 口播 / 音色翻唱） | 🟢 全自动 | AI 按 playbook（6 种蹭法） |
+| 想 Rythmix 蹭法（AI MV / 大字报 / 翻跳 / 口播 / 音色克隆） | 🟢 全自动 | AI 按 playbook（6 种蹭法） |
 | 每个方案配一个具体参考视频 | 🟡 多数自动 | AI 联网找 TT/YT/IG 单条样板；偶尔退到聚合页需人工替换 |
 | 版权红线检查 | 🟢 全自动初筛 | AI 初筛 + 高风险项标红给人复核 |
 | 出周报 | 🟢 全自动 | |
