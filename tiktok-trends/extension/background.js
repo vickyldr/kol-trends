@@ -74,37 +74,36 @@ async function run({ period, topN }, progress) {
 // B 档：调 Anthropic API 出报告（含 web 搜索）
 async function generateReport(inputMd) {
   const { apiKey, baseUrl, model, useSearch } = await chrome.storage.local.get(['apiKey', 'baseUrl', 'model', 'useSearch']);
-  if (!apiKey) throw new Error('未填 API key');
   const base = (baseUrl || 'https://api.anthropic.com').trim().replace(/\/+$/, '');
-  const isOAuth = apiKey.startsWith('sk-ant-oat'); // 订阅令牌：走 OAuth 方式
+  const viaProxy = !base.includes('api.anthropic.com'); // 走你 VPS 代理（推荐）
+  if (!viaProxy && !apiKey) throw new Error('未填 API key');
+  const isOAuth = (apiKey || '').startsWith('sk-ant-oat'); // 直连官方时：订阅令牌走 OAuth
 
   const body = {
     model: model || 'claude-sonnet-4-6',
     max_tokens: 8000,
+    system: self.RYTHMIX_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: self.buildRythmixUserPrompt(inputMd) }],
   };
-  // 订阅令牌要求系统提示以 Claude Code 身份开头，否则会被拒"only authorized for Claude Code"
-  body.system = isOAuth
-    ? [
-        { type: 'text', text: "You are Claude Code, Anthropic's official CLI for Claude." },
-        { type: 'text', text: self.RYTHMIX_SYSTEM_PROMPT },
-      ]
-    : self.RYTHMIX_SYSTEM_PROMPT;
-  // 自定义 base URL（如 ccr）转发的模型不一定支持官方联网搜索；仅官方接口默认带上
-  if (useSearch !== false && base.includes('api.anthropic.com')) {
+  // 联网搜索：走 VPS 代理(最终转给官方,支持) 或 直连官方时都带上
+  if (useSearch !== false) {
     body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 20 }];
   }
 
-  const headers = {
-    'content-type': 'application/json',
-    'anthropic-version': '2023-06-01',
-    'anthropic-dangerous-direct-browser-access': 'true',
-  };
-  if (isOAuth) {
-    headers['authorization'] = 'Bearer ' + apiKey;
-    headers['anthropic-beta'] = 'oauth-2025-04-20';
+  const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01' };
+  if (viaProxy) {
+    // VPS 代理负责真正的鉴权 + Claude Code 身份；这里把 key 当作可选的“代理密钥”
+    if (apiKey) headers['x-proxy-secret'] = apiKey;
   } else {
-    headers['x-api-key'] = apiKey;
+    // 直连官方（仅当你的组织允许浏览器直连时才行）
+    headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    if (isOAuth) {
+      body.system = [{ type: 'text', text: "You are Claude Code, Anthropic's official CLI for Claude." }, { type: 'text', text: self.RYTHMIX_SYSTEM_PROMPT }];
+      headers['authorization'] = 'Bearer ' + apiKey;
+      headers['anthropic-beta'] = 'oauth-2025-04-20';
+    } else {
+      headers['x-api-key'] = apiKey;
+    }
   }
 
   const r = await fetch(base + '/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
