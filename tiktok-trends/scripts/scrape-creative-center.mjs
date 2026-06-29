@@ -48,9 +48,12 @@ const period = cfg.period_days ?? 7;
 const WEEK = weekArg || isoWeek(new Date());
 const DATE = new Date().toISOString().slice(0, 10);
 
-// 公开的 Hashtag 趋势页（按 region/period 过滤）。换榜单改这里。
+// 目标榜单 URL 来自 config.source.url_template（确认是哪个榜后只改配置，不动代码）。
+const URL_TEMPLATE =
+  cfg.source?.url_template ||
+  'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?period={period}&region={region}';
 const PAGE_URL = (region) =>
-  `https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?period=${period}&region=${region}`;
+  URL_TEMPLATE.replace('{period}', period).replace('{region}', region);
 
 // 从拦截到的 JSON 里尽量挖出榜单条目的名字
 function extractFromJson(obj) {
@@ -66,7 +69,13 @@ function extractFromJson(obj) {
   return out;
 }
 
-async function scrapeCountry(ctx, region) {
+// 顺手收集任何出现的 TikTok 单条视频 permalink（给「视频链接」当候选）
+const VIDEO_RE = /https?:\/\/(?:www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/g;
+function extractVideoLinks(text) {
+  return (String(text).match(VIDEO_RE) || []).map((u) => u.split('?')[0]);
+}
+
+async function scrapeCountry(ctx, region, videoSink) {
   const page = await ctx.newPage();
   const captured = [];
   page.on('response', async (res) => {
@@ -74,7 +83,9 @@ async function scrapeCountry(ctx, region) {
     if (!/creative_radar_api|popular_trend|trending/i.test(u)) return;
     try {
       if ((res.headers()['content-type'] || '').includes('json')) {
-        captured.push(...extractFromJson(await res.json()));
+        const txt = await res.text();
+        captured.push(...extractFromJson(JSON.parse(txt)));
+        extractVideoLinks(txt).forEach((v) => videoSink.add(v));
       }
     } catch {}
   });
@@ -112,10 +123,11 @@ const ctx = await browser.newContext({
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 });
 
+const videoSink = new Set();
 const blocks = [];
 for (const c of cfg.countries) {
   process.stdout.write(`抓取 ${c.name} (${c.code}) ... `);
-  const words = await scrapeCountry(ctx, c.code);
+  const words = await scrapeCountry(ctx, c.code, videoSink);
   console.log(words.length ? `${words.length} 条` : '未拿到（请手动补）');
   const numbered = words.length
     ? words.map((w, i) => `${i + 1}. ${w}`).join('\n')
@@ -147,4 +159,14 @@ if (existsSync(outPath)) {
   writeFileSync(outPath, md);
   console.log(`\n✅ 写入 ${outPath}`);
 }
-console.log(`下一步：让 AI 按 prompts/analyze-week.md 出 report.md。`);
+
+// 把抓到的 TikTok 单条视频链接存一份，给「视频链接」当候选
+if (videoSink.size) {
+  const vp = join(weekDir, 'scraped-videos.txt');
+  writeFileSync(vp, [...videoSink].join('\n') + '\n');
+  console.log(`✅ 顺手抓到 ${videoSink.size} 条 TikTok 视频链接 → ${vp}`);
+} else {
+  console.log(`（本次没抓到单条视频链接；视频链接用聚合页或 INS/YT 退路）`);
+}
+
+console.log(`下一步：让 AI 按 prompts/analyze-week.md 出 report.md + ideas.csv。`);
