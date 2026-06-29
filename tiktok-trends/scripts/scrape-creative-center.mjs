@@ -1,31 +1,41 @@
 #!/usr/bin/env node
 /**
- * 可选：从 TikTok Creative Center 自动抓各国趋势，填进本周 input-keywords.md。
+ * 本地爬虫（在你自己电脑跑）：用你的真 Chrome + 持久登录，自动抓各国 Hashtag 榜前十/十五，
+ * 填好本周 input-keywords.md，并顺手抓 TikTok 单条视频链接。
  *
- * ⚠️ 在【你自己的电脑】上跑，不要在 Claude Code 云沙箱里跑：
- *    云沙箱的出口代理与 Chromium 的 TLS 握手不兼容（ClientHello 阶段被断连），跑不通。
- *    普通电脑没有这个代理，正常。
+ * 风险最低的姿势：真浏览器 + 家里 IP + 每周一次 + 登录态记住（第一次登录一次，之后自动）。
+ * ⚠️ 用一个【单独的 business 账号】登录 Creative Center，别用你发视频的主账号。
  *
- * 准备:
- *   npm i playwright && npx playwright install chromium
- * 用法:
- *   node tiktok-trends/scripts/scrape-creative-center.mjs            # 当前 ISO 周
- *   node tiktok-trends/scripts/scrape-creative-center.mjs 2026-W30   # 指定周
- *   HEADFUL=1 node ...   # 显示浏览器窗口（首次调试/可能要手动过验证时用）
- *
- * 说明: Creative Center 偶尔改接口/版式。脚本同时尝试 (a) 拦截 creative_radar_api 的 JSON，
- *       (b) 兜底读渲染后的 DOM。哪个拿到就用哪个；都拿不到会在该国留空并提示手动补。
- *       它抓的是 Hashtag 榜（最稳定的公开榜）。要换"热搜词"榜，调整 PAGE_URL 即可。
+ * 一般你不用直接敲命令——双击 run-windows.bat（或 run-mac.command）即可。
+ * 手动跑：node tiktok-trends/scripts/scrape-creative-center.mjs [2026-W30]
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import readline from 'node:readline';
+import { spawn } from 'node:child_process';
+
+// 把文本复制到系统剪贴板（Win: clip / Mac: pbcopy / Linux: xclip）
+function copyToClipboard(text) {
+  const cmd = process.platform === 'win32' ? 'clip'
+    : process.platform === 'darwin' ? 'pbcopy'
+    : 'xclip';
+  return new Promise((res) => {
+    try {
+      const args = process.platform === 'linux' ? ['-selection', 'clipboard'] : [];
+      const p = spawn(cmd, args);
+      p.on('error', () => res(false));
+      p.on('close', () => res(true));
+      p.stdin.end(text);
+    } catch { res(false); }
+  });
+}
 
 let chromium;
 try {
   ({ chromium } = await import('playwright'));
 } catch {
-  console.error('缺少 playwright。先在本机: npm i playwright && npx playwright install chromium');
+  console.error('缺少 playwright。先在本机跑：npm i playwright && npx playwright install chromium');
   process.exit(1);
 }
 
@@ -42,102 +52,109 @@ function isoWeek(d) {
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+function pause(msg) {
+  return new Promise((res) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(msg, () => { rl.close(); res(); });
+  });
+}
+
 const cfg = JSON.parse(readFileSync(join(ROOT, 'config', 'countries.json'), 'utf8'));
 const topN = cfg.top_n ?? 10;
+const want = cfg.top_n_if_dull ?? 15; // 多抓几个备用
 const period = cfg.period_days ?? 7;
 const WEEK = weekArg || isoWeek(new Date());
 const DATE = new Date().toISOString().slice(0, 10);
-
-// 目标榜单 URL 来自 config.source.url_template（确认是哪个榜后只改配置，不动代码）。
-const URL_TEMPLATE =
-  cfg.source?.url_template ||
+const URL_TEMPLATE = cfg.source?.url_template ||
   'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?period={period}&region={region}';
-const PAGE_URL = (region) =>
-  URL_TEMPLATE.replace('{period}', period).replace('{region}', region);
+const PAGE_URL = (region) => URL_TEMPLATE.replace('{period}', period).replace('{region}', region);
 
-// 从拦截到的 JSON 里尽量挖出榜单条目的名字
-function extractFromJson(obj) {
-  const out = [];
-  const visit = (n) => {
-    if (!n || typeof n !== 'object') return;
-    if (Array.isArray(n)) return n.forEach(visit);
-    const name = n.hashtag_name || n.keyword || n.title || n.name || n.word;
-    if (typeof name === 'string' && name.trim()) out.push(name.trim());
-    Object.values(n).forEach(visit);
-  };
-  visit(obj);
-  return out;
-}
-
-// 顺手收集任何出现的 TikTok 单条视频 permalink（给「视频链接」当候选）
 const VIDEO_RE = /https?:\/\/(?:www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/g;
-function extractVideoLinks(text) {
-  return (String(text).match(VIDEO_RE) || []).map((u) => u.split('?')[0]);
-}
-
-async function scrapeCountry(ctx, region, videoSink) {
-  const page = await ctx.newPage();
-  const captured = [];
-  page.on('response', async (res) => {
-    const u = res.url();
-    if (!/creative_radar_api|popular_trend|trending/i.test(u)) return;
-    try {
-      if ((res.headers()['content-type'] || '').includes('json')) {
-        const txt = await res.text();
-        captured.push(...extractFromJson(JSON.parse(txt)));
-        extractVideoLinks(txt).forEach((v) => videoSink.add(v));
-      }
-    } catch {}
-  });
-
-  try {
-    await page.goto(PAGE_URL(region), { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(8000); // 等 XHR
-  } catch (e) {
-    console.error(`  [${region}] 打开失败: ${e.message.split('\n')[0]}`);
-  }
-
-  // 兜底：读 DOM 里看起来像 hashtag 的文本
-  let domWords = [];
-  try {
-    domWords = await page.$$eval('span, a, h3', (els) =>
-      els
-        .map((e) => e.textContent.trim())
-        .filter((t) => /^#?[\p{L}\p{N}_]{2,40}$/u.test(t) && t.startsWith('#'))
-    );
-  } catch {}
-
-  await page.close();
-
-  const seen = new Set();
-  const merged = [...captured, ...domWords]
-    .map((w) => w.replace(/^#/, '').trim())
-    .filter((w) => w && !seen.has(w.toLowerCase()) && seen.add(w.toLowerCase()));
-  return merged.slice(0, Math.max(topN, 15));
-}
-
-const browser = await chromium.launch({ headless: !process.env.HEADFUL });
-const ctx = await browser.newContext({
-  locale: 'en-US',
-  userAgent:
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-});
-
 const videoSink = new Set();
+
+// 抓页面上所有形如 #xxx 的 hashtag 文本（去重）
+const getTags = (page) =>
+  page.evaluate(() =>
+    [...new Set(
+      [...document.querySelectorAll('*')]
+        .map((e) => (e.childElementCount === 0 ? (e.textContent || '').trim() : ''))
+        .filter((t) => /^#[A-Za-z0-9_À-￿]{2,30}$/.test(t))
+    )]
+  );
+
+async function loadCountry(page, region) {
+  await page.goto(PAGE_URL(region), { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+  await page.waitForTimeout(4000);
+  // 不断点 "View more" / 滚动，直到拿到 want 个或不再增长
+  let last = 0;
+  for (let i = 0; i < 12; i++) {
+    const tags = await getTags(page);
+    if (tags.length >= want) break;
+    if (tags.length === last && i > 1) {
+      const vm = page.getByText('View more', { exact: true }).first();
+      if (await vm.count().catch(() => 0)) await vm.click({ timeout: 3000 }).catch(() => {});
+      else await page.mouse.wheel(0, 3000);
+    } else {
+      await page.mouse.wheel(0, 3000);
+    }
+    last = tags.length;
+    await page.waitForTimeout(1800);
+  }
+  return (await getTags(page)).slice(0, want);
+}
+
+// ---- 启动持久浏览器（记住登录），优先用你装的真 Chrome ----
+const userDataDir = join(ROOT, '.tt-profile');
+const firstRun = !existsSync(userDataDir);
+mkdirSync(userDataDir, { recursive: true });
+
+async function launch() {
+  const common = { headless: false, viewport: { width: 1366, height: 900 } };
+  for (const opt of [{ channel: 'chrome' }, { channel: 'msedge' }, {}]) {
+    try { return await chromium.launchPersistentContext(userDataDir, { ...common, ...opt }); }
+    catch { /* try next */ }
+  }
+  throw new Error('启动浏览器失败：试试先 npx playwright install chromium');
+}
+
+const ctx = await launch();
+ctx.on('response', async (res) => {
+  try {
+    const ct = res.headers()['content-type'] || '';
+    if (/json|text|javascript/.test(ct)) (String(await res.text()).match(VIDEO_RE) || []).forEach((v) => videoSink.add(v.split('?')[0]));
+  } catch {}
+});
+const page = ctx.pages()[0] || (await ctx.newPage());
+
+// 第一次：让用户登录一次
+const first = cfg.countries[0];
+await page.goto(PAGE_URL(first.code), { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+await page.waitForTimeout(3000);
+if (firstRun) {
+  console.log('\n================ 第一次使用：请登录一次 ================');
+  console.log('1) 在弹出的浏览器窗口里，点右上角 Log in，登录 Creative Center');
+  console.log('   （建议用单独的 business 账号，别用发视频的主账号）');
+  console.log('2) 看到 Hashtag 榜能正常显示一长串后，回到这个黑框，按【回车】继续。');
+  console.log('   （登录会被记住，以后再跑就不用登了）');
+  await pause('\n登录好后按回车 > ');
+}
+
+// ---- 逐国抓 ----
 const blocks = [];
 for (const c of cfg.countries) {
   process.stdout.write(`抓取 ${c.name} (${c.code}) ... `);
-  const words = await scrapeCountry(ctx, c.code, videoSink);
-  console.log(words.length ? `${words.length} 条` : '未拿到（请手动补）');
-  const numbered = words.length
-    ? words.map((w, i) => `${i + 1}. ${w}`).join('\n')
+  let tags = [];
+  try { tags = await loadCountry(page, c.code); } catch {}
+  console.log(tags.length ? `${tags.length} 个` : '未拿到（手动补）');
+  const numbered = tags.length
+    ? tags.map((w, i) => `${i + 1}. ${w}`).join('\n')
     : Array.from({ length: topN }, (_, i) => `${i + 1}. `).join('\n');
   blocks.push(`## ${c.name} (${c.code})\n${numbered}\n`);
 }
 
-await browser.close();
+await ctx.close();
 
-const md = `<!-- 由 scrape-creative-center.mjs 自动抓取。空的国家请手动补，AI 会翻译/查证。 -->
+const md = `<!-- 由 scrape-creative-center.mjs 本地抓取。空的国家请手动补。 -->
 
 # 本周 TikTok 热搜词 — ${WEEK}
 
@@ -152,21 +169,14 @@ ${blocks.join('\n')}`;
 const weekDir = join(ROOT, 'weeks', WEEK);
 mkdirSync(weekDir, { recursive: true });
 const outPath = join(weekDir, 'input-keywords.md');
-if (existsSync(outPath)) {
-  writeFileSync(outPath.replace(/\.md$/, `.scraped.md`), md);
-  console.log(`\n已存在 input-keywords.md，结果另存为 input-keywords.scraped.md（自行合并）。`);
-} else {
-  writeFileSync(outPath, md);
-  console.log(`\n✅ 写入 ${outPath}`);
-}
+writeFileSync(outPath, md);
+console.log(`\n✅ 已写入 ${outPath}`);
 
-// 把抓到的 TikTok 单条视频链接存一份，给「视频链接」当候选
 if (videoSink.size) {
-  const vp = join(weekDir, 'scraped-videos.txt');
-  writeFileSync(vp, [...videoSink].join('\n') + '\n');
-  console.log(`✅ 顺手抓到 ${videoSink.size} 条 TikTok 视频链接 → ${vp}`);
-} else {
-  console.log(`（本次没抓到单条视频链接；视频链接用聚合页或 INS/YT 退路）`);
+  writeFileSync(join(weekDir, 'scraped-videos.txt'), [...videoSink].join('\n') + '\n');
+  console.log(`✅ 顺手抓到 ${videoSink.size} 条 TikTok 视频链接`);
 }
 
-console.log(`下一步：让 AI 按 prompts/analyze-week.md 出 report.md + ideas.csv。`);
+const copied = await copyToClipboard(md);
+if (copied) console.log('\n📋 本周词已复制到剪贴板！去 Claude 直接 Ctrl+V 粘贴，说「出本周周报」即可。');
+else console.log(`\n下一步：打开 ${outPath}，复制内容发给 Claude，说「出本周周报」即可。`);
