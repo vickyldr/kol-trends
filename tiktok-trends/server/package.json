@@ -1,0 +1,11 @@
+{
+  "name": "rythmix-anthropic-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node anthropic-proxy.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

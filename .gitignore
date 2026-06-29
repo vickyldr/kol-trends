@@ -2,6 +2,8 @@
 node_modules/
 package-lock.json
 package.json
+# 但 VPS/Railway 代理需要它自己的 package.json
+!tiktok-trends/server/package.json
 
 # 爬虫的浏览器登录态（含你的登录，绝不能提交！）
 tiktok-trends/.tt-profile/
