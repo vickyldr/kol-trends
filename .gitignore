@@ -1,0 +1,7 @@
+# 依赖与本地运行产物（不进仓库）
+node_modules/
+package-lock.json
+package.json
+
+# 爬虫的浏览器登录态（含你的登录，绝不能提交！）
+tiktok-trends/.tt-profile/
