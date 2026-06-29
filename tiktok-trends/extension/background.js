@@ -76,27 +76,38 @@ async function generateReport(inputMd) {
   const { apiKey, baseUrl, model, useSearch } = await chrome.storage.local.get(['apiKey', 'baseUrl', 'model', 'useSearch']);
   if (!apiKey) throw new Error('未填 API key');
   const base = (baseUrl || 'https://api.anthropic.com').trim().replace(/\/+$/, '');
+  const isOAuth = apiKey.startsWith('sk-ant-oat'); // 订阅令牌：走 OAuth 方式
+
   const body = {
     model: model || 'claude-sonnet-4-6',
     max_tokens: 8000,
-    system: self.RYTHMIX_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: self.buildRythmixUserPrompt(inputMd) }],
   };
+  // 订阅令牌要求系统提示以 Claude Code 身份开头，否则会被拒"only authorized for Claude Code"
+  body.system = isOAuth
+    ? [
+        { type: 'text', text: "You are Claude Code, Anthropic's official CLI for Claude." },
+        { type: 'text', text: self.RYTHMIX_SYSTEM_PROMPT },
+      ]
+    : self.RYTHMIX_SYSTEM_PROMPT;
   // 自定义 base URL（如 ccr）转发的模型不一定支持官方联网搜索；仅官方接口默认带上
   if (useSearch !== false && base.includes('api.anthropic.com')) {
     body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 20 }];
   }
-  const r = await fetch(base + '/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'authorization': 'Bearer ' + apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify(body),
-  });
+
+  const headers = {
+    'content-type': 'application/json',
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true',
+  };
+  if (isOAuth) {
+    headers['authorization'] = 'Bearer ' + apiKey;
+    headers['anthropic-beta'] = 'oauth-2025-04-20';
+  } else {
+    headers['x-api-key'] = apiKey;
+  }
+
+  const r = await fetch(base + '/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
   const data = await r.json();
   if (!r.ok) throw new Error('API ' + r.status + '：' + ((data.error && data.error.message) || JSON.stringify(data).slice(0, 200)));
   return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');

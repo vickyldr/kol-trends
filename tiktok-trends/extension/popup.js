@@ -41,8 +41,8 @@ function isOfficial(baseUrl) {
 function keyWarning(k, baseUrl) {
   k = (k || '').trim();
   if (!k || !isOfficial(baseUrl)) return '';
-  if (k.startsWith('sk-ant-oat')) return '⚠️ 这是 Claude Code 订阅令牌(oat)，直连官方会 401。要么填 sk-ant-api03- 付费 key，要么把 base URL 指向你的 ccr（它用订阅令牌转发）。';
-  if (!k.startsWith('sk-ant-api')) return '⚠️ key 格式不像 sk-ant-api03-…，直连官方可能失败。';
+  // oat = 订阅令牌：现在用 OAuth 方式调用，支持；api03 = 付费 key，也支持。
+  if (!k.startsWith('sk-ant-oat') && !k.startsWith('sk-ant-api')) return '⚠️ key 格式不像 sk-ant-… ，调用可能失败。';
   return '';
 }
 
