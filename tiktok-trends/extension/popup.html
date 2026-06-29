@@ -3,38 +3,61 @@
 <head>
   <meta charset="utf-8" />
   <style>
-    body { width: 300px; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; padding: 14px; margin: 0; }
+    body { width: 320px; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; padding: 14px; margin: 0; }
     h1 { font-size: 15px; margin: 0 0 4px; }
     .sub { font-size: 12px; color: #666; margin: 0 0 12px; }
-    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 13px; }
-    select, input { font-size: 13px; padding: 3px 6px; }
-    input[type=number] { width: 56px; }
-    button { font-size: 14px; padding: 9px 12px; width: 100%; border: 0; border-radius: 8px; cursor: pointer; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 13px; flex-wrap: wrap; }
+    select, input { font-size: 13px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; }
+    input[type=number] { width: 52px; }
+    input[type=password], input[type=text].full { width: 100%; box-sizing: border-box; }
+    button { font-size: 14px; padding: 9px 12px; width: 100%; border: 0; border-radius: 8px; cursor: pointer; margin-top: 6px; }
     #go { background: #fe2c55; color: #fff; font-weight: 600; }
     #go:disabled { background: #ccc; }
-    #copy { background: #111; color: #fff; margin-top: 8px; display: none; }
+    .dl { background: #111; color: #fff; display: none; }
     #status { font-size: 12px; color: #333; margin-top: 10px; white-space: pre-wrap; min-height: 18px; }
+    details { margin: 4px 0 10px; font-size: 12px; }
+    summary { cursor: pointer; color: #444; }
+    .box { border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-top: 8px; }
     .tip { font-size: 11px; color: #888; margin-top: 10px; line-height: 1.5; }
+    label { display: block; margin: 6px 0 3px; color: #555; }
+    .ok { color: #0a0; }
   </style>
 </head>
 <body>
   <h1>Rythmix 热点收集器</h1>
-  <p class="sub">一键抓各国 Hashtag 前十 → 复制 → 粘给 Claude</p>
+  <p class="sub">一键抓各国 Hashtag → 自动出周报 + ideas.csv</p>
+
+  <details id="settings">
+    <summary>⚙️ 设置（填一次 API key 就全自动）</summary>
+    <div class="box">
+      <label>Anthropic API key（sk-ant-… 只存本地）</label>
+      <input id="apiKey" type="password" class="full" placeholder="留空=只抓数据，不自动出报告" />
+      <label>模型</label>
+      <select id="model" class="full">
+        <option value="claude-sonnet-4-6">Sonnet 4.6（省钱，推荐）</option>
+        <option value="claude-opus-4-8">Opus 4.8（最佳质量，略贵）</option>
+      </select>
+      <label><input id="useSearch" type="checkbox" checked /> 开启联网查证 + 找参考视频</label>
+      <button id="save" style="background:#eee;color:#111;">保存设置</button>
+    </div>
+  </details>
 
   <div class="row">
-    时间范围
+    时间
     <select id="period">
-      <option value="7" selected>最近 7 天</option>
-      <option value="30">最近 30 天</option>
-      <option value="120">最近 120 天</option>
+      <option value="7" selected>近 7 天</option>
+      <option value="30">近 30 天</option>
+      <option value="120">近 120 天</option>
     </select>
     取前 <input id="topN" type="number" value="15" min="5" max="50" /> 个
   </div>
 
-  <button id="go">开始抓取</button>
-  <button id="copy">📋 复制到剪贴板</button>
+  <button id="go">开始</button>
+  <button id="dlReport" class="dl">⬇️ 下载周报 report.md</button>
+  <button id="dlCsv" class="dl">⬇️ 下载 ideas.csv（导飞书）</button>
+  <button id="copy" class="dl">📋 复制结果</button>
   <div id="status"></div>
-  <p class="tip">先确保你已在 ads.tiktok.com 登录（建议用单独 business 账号）。抓取时会在后台开一个标签页轮流切换各国，跑完自动关闭。完成后点「复制」，去 Claude 粘贴并说「出本周周报」。</p>
+  <p class="tip">先在 ads.tiktok.com 登录（建议单独 business 账号）。点「开始」后会在后台开标签页轮流抓各国，别关浏览器。填了 key 就直接出报告；没填则只抓数据、复制好粘给 Claude。</p>
 
   <script src="popup.js"></script>
 </body>
