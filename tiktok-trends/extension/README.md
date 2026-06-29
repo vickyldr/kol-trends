@@ -22,8 +22,9 @@
 ### B 档·全自动（填一次 API key，点一下出报告）— 推荐
 
 1. 点插件图标 → 展开 **⚙️ 设置** → 填 **Anthropic API key**，选模型，**保存**。
-   - ⚠️ 必须是 **`sk-ant-api03-…`**（console.anthropic.com → Billing 充值后创建的**付费 API key**）。
-   - **`sk-ant-oat01-…` 不行**——那是 Claude Code 的订阅登录令牌，直连官方接口会 401。没有付费 key 就用下面的 A 档。
+   - 两种 key 都支持：**`sk-ant-api03-…`**（付费 API key）或 **`sk-ant-oat01-…`**（Claude Code 订阅令牌）。
+     插件会自动判断：oat 走 OAuth 方式（Bearer + oauth beta header），api03 走 x-api-key。
+   - 用 oat 时 **base URL 留空**（走官方）。若联网搜索那步报错，把"开启联网查证"取消再试。
    - key 只存你**本地浏览器**，不进仓库、不外发。
 2. 先在 **ads.tiktok.com 登录**（建议单独 business 账号）。
 3. 点 **开始** → 它后台抓完 12 国 → **自动调 Claude（带联网查证+找参考视频）出报告** → 自动下载 `report.md` 和 `ideas.csv`。
