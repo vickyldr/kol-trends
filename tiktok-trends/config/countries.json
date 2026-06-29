@@ -1,0 +1,20 @@
+{
+  "_comment": "要追踪的国家/地区清单。code 用于 Creative Center 的 country_code；name 是周报里显示的名字。增删直接改这里，new-week.mjs 和爬虫都读它。",
+  "period_days": 7,
+  "top_n": 10,
+  "top_n_if_dull": 15,
+  "countries": [
+    { "code": "US", "name": "美国" },
+    { "code": "GB", "name": "英国" },
+    { "code": "CA", "name": "加拿大" },
+    { "code": "AU", "name": "澳大利亚" },
+    { "code": "DE", "name": "德国" },
+    { "code": "FR", "name": "法国" },
+    { "code": "ID", "name": "印尼" },
+    { "code": "PH", "name": "菲律宾" },
+    { "code": "VN", "name": "越南" },
+    { "code": "TH", "name": "泰国" },
+    { "code": "MY", "name": "马来西亚" },
+    { "code": "SG", "name": "新加坡" }
+  ]
+}
