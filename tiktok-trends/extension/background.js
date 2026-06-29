@@ -5,10 +5,11 @@
 importScripts('prompt.js');
 
 const COUNTRIES = [
-  { code: 'US', name: '美国' }, { code: 'GB', name: '英国' }, { code: 'CA', name: '加拿大' },
-  { code: 'AU', name: '澳大利亚' }, { code: 'DE', name: '德国' }, { code: 'FR', name: '法国' },
-  { code: 'ID', name: '印尼' }, { code: 'PH', name: '菲律宾' }, { code: 'VN', name: '越南' },
-  { code: 'TH', name: '泰国' }, { code: 'MY', name: '马来西亚' }, { code: 'SG', name: '新加坡' },
+  { code: 'US', name: '美国' }, { code: 'TR', name: '土耳其' }, { code: 'IT', name: '意大利' },
+  { code: 'FR', name: '法国' }, { code: 'DE', name: '德国' }, { code: 'BR', name: '巴西' },
+  { code: 'MX', name: '墨西哥' }, { code: 'TW', name: '台湾' }, { code: 'JP', name: '日本' },
+  { code: 'KR', name: '韩国' }, { code: 'TH', name: '泰国' }, { code: 'UA', name: '乌克兰' },
+  { code: 'SA', name: '沙特阿拉伯' }, { code: 'CA', name: '加拿大' }, { code: 'GB', name: '英国' },
 ];
 
 const urlFor = (region, period) =>
