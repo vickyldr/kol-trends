@@ -77,9 +77,10 @@ go.addEventListener('click', () => {
   chrome.storage.local.set({ apiKey: $('apiKey').value.trim(), baseUrl: $('baseUrl').value.trim(), model: $('model').value, useSearch: $('useSearch').checked });
   go.disabled = true; go.textContent = '抓取中…';
   [dlReport, dlCsv, copyBtn].forEach((b) => (b.style.display = 'none'));
-  const hasKey = !!$('apiKey').value.trim();
-  status.textContent = hasKey ? '开始抓取…（抓完会自动出报告，别关浏览器）' : '开始抓取…（别关浏览器）';
-  chrome.runtime.sendMessage({ type: 'start', period: Number($('period').value), topN: Number($('topN').value) || 15, generate: hasKey });
+  // 有 key（直连）或有 base URL（走 VPS 代理）都能自动出报告
+  const canGen = !!$('apiKey').value.trim() || !!$('baseUrl').value.trim();
+  status.textContent = canGen ? '开始抓取…（抓完会自动出报告，别关浏览器）' : '开始抓取…（别关浏览器）';
+  chrome.runtime.sendMessage({ type: 'start', period: Number($('period').value), topN: Number($('topN').value) || 15, generate: canGen });
 });
 
 copyBtn.addEventListener('click', async () => {

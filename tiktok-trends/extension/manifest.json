@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "一键收集 TikTok Creative Center 各国 Hashtag 前十，整理好复制到剪贴板，粘给 Claude 出周报。",
   "permissions": ["scripting", "tabs", "downloads", "storage", "clipboardWrite"],
-  "host_permissions": ["https://ads.tiktok.com/*", "https://api.anthropic.com/*", "http://localhost/*", "http://127.0.0.1/*", "https://*/*"],
+  "host_permissions": ["https://ads.tiktok.com/*", "https://api.anthropic.com/*", "http://localhost/*", "http://127.0.0.1/*", "https://*/*", "http://*/*"],
   "action": { "default_popup": "popup.html", "default_title": "Rythmix 热点收集器" },
   "background": { "service_worker": "background.js" }
 }
