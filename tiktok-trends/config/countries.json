@@ -1,5 +1,15 @@
 {
   "_comment": "要追踪的国家/地区清单。code 用于 Creative Center 的 country_code；name 是周报里显示的名字。增删直接改这里，new-week.mjs 和爬虫都读它。",
+  "_source_comment": "本地爬虫的目标榜单。等确认你每周看的是哪个榜，把 url_template 换成对应入口即可（{region}/{period} 会被替换）。candidates 列了常见入口备选。",
+  "source": {
+    "board": "hashtag",
+    "url_template": "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?period={period}&region={region}",
+    "candidates": {
+      "trends_hub": "https://ads.tiktok.com/creative/creativeCenter/trends?is_new_connect=0&is_new_user=0",
+      "hashtag": "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?period={period}&region={region}",
+      "song": "https://ads.tiktok.com/business/creativecenter/inspiration/popular/music/pc/en?period={period}&region={region}"
+    }
+  },
   "period_days": 7,
   "top_n": 10,
   "top_n_if_dull": 15,

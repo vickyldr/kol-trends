@@ -62,12 +62,16 @@ node tiktok-trends/scripts/new-week.mjs
 | 方式 | 怎么做 | 适合 |
 |------|--------|------|
 | **A. 手动贴**（默认/最省事） | 照旧打开 [Creative Center Trends](https://ads.tiktok.com/creative/creativeCenter/trends)，把各国前十/前十五的词复制进 `input-keywords.md` 对应国家下 | 任何环境，零维护 |
-| **B. 本地爬虫** | 在**你自己电脑**上 `node scripts/scrape-creative-center.mjs`，自动填 `input-keywords.md` | 想全自动、能在本机跑脚本 |
+| **B. 本地爬虫**（推荐） | 在**你自己电脑**上 `node scripts/scrape-creative-center.mjs`，自动填 `input-keywords.md`，并顺手抓 TikTok 单条视频链接到 `scraped-videos.txt` | 想全自动、能在本机跑脚本 |
 | **C. 联网搜索近似** | 让 AI 用 WebSearch + 第三方趋势站凑近似榜 | 临时、手头没榜单时 |
 
 > ⚠️ 为什么不能在云端（Claude Code web）直接爬：Creative Center 的趋势接口要浏览器签名，
 > 且本云沙箱的 Chromium 走不通出口代理（TLS 握手被代理在 ClientHello 阶段断连，属基础设施限制）。
 > 在**普通电脑**上没有这个代理，方式 B 可正常跑。
+>
+> 🔧 **爬虫目标榜单是配置驱动的**：改 `config/countries.json` 的 `source.url_template` 即可切换
+> （Hashtags / Songs / Trends 中心页等，`candidates` 里有备选）。先确认你每周看的是哪个榜再跑。
+> 参考视频链接优先级：**TikTok > Instagram > YouTube**，优先单条 permalink。
 
 ### Step 2 — 让 AI 出周报
 把 [`prompts/analyze-week.md`](./prompts/analyze-week.md) 连同本周 `input-keywords.md` 交给 Claude，
