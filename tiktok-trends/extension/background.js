@@ -73,20 +73,25 @@ async function run({ period, topN }, progress) {
 
 // B 档：调 Anthropic API 出报告（含 web 搜索）
 async function generateReport(inputMd) {
-  const { apiKey, model, useSearch } = await chrome.storage.local.get(['apiKey', 'model', 'useSearch']);
+  const { apiKey, baseUrl, model, useSearch } = await chrome.storage.local.get(['apiKey', 'baseUrl', 'model', 'useSearch']);
   if (!apiKey) throw new Error('未填 API key');
+  const base = (baseUrl || 'https://api.anthropic.com').trim().replace(/\/+$/, '');
   const body = {
     model: model || 'claude-sonnet-4-6',
     max_tokens: 8000,
     system: self.RYTHMIX_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: self.buildRythmixUserPrompt(inputMd) }],
   };
-  if (useSearch !== false) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 20 }];
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  // 自定义 base URL（如 ccr）转发的模型不一定支持官方联网搜索；仅官方接口默认带上
+  if (useSearch !== false && base.includes('api.anthropic.com')) {
+    body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 20 }];
+  }
+  const r = await fetch(base + '/v1/messages', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'x-api-key': apiKey,
+      'authorization': 'Bearer ' + apiKey,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
@@ -130,7 +135,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             if (csv) download('ideas.csv', csv, 'text/csv');
             chrome.runtime.sendMessage({ type: 'reportDone', report, csv }).catch(() => {});
           } catch (e) {
-            chrome.storage.local.set({ status: 'done' });
+            chrome.storage.local.set({ status: 'genError', genErrorText: String(e) });
             chrome.runtime.sendMessage({ type: 'genError', text: String(e), md }).catch(() => {});
           }
         } else {
