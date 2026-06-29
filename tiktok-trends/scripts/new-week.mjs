@@ -80,4 +80,10 @@ if (!existsSync(reportPath)) {
   console.log(`✅ 生成周报骨架: ${reportPath}`);
 }
 
-console.log(`\n下一步：把各国前 ${topN} 词贴进 ${inputPath}，然后让 AI 按 prompts/analyze-week.md 出 report.md。`);
+const csvPath = join(weekDir, 'ideas.csv');
+if (!existsSync(csvPath)) {
+  copyFileSync(join(ROOT, 'templates', 'ideas.csv'), csvPath);
+  console.log(`✅ 生成 CSV 表头: ${csvPath}`);
+}
+
+console.log(`\n下一步：把各国前 ${topN} 词贴进 ${inputPath}，然后让 AI 按 prompts/analyze-week.md 出 report.md + ideas.csv。`);
