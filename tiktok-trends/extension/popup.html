@@ -30,8 +30,10 @@
   <details id="settings">
     <summary>⚙️ 设置（填一次 API key 就全自动）</summary>
     <div class="box">
-      <label>Anthropic API key（sk-ant-… 只存本地）</label>
+      <label>Anthropic API key（只存本地）</label>
       <input id="apiKey" type="password" class="full" placeholder="留空=只抓数据，不自动出报告" />
+      <label>API 网址 base URL（默认官方；用 ccr 就填它的本地地址，如 http://127.0.0.1:3456）</label>
+      <input id="baseUrl" type="text" class="full" placeholder="https://api.anthropic.com" />
       <label>模型</label>
       <select id="model" class="full">
         <option value="claude-sonnet-4-6">Sonnet 4.6（省钱，推荐）</option>

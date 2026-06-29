@@ -32,27 +32,49 @@ function showReport(report, csv) {
   status.innerHTML = '<span class="ok">✅ 报告已生成并自动下载（report.md + ideas.csv）。把 ideas.csv 导入飞书即可。</span>';
 }
 
+// 用官方接口时才校验 key 类型：oat = 订阅令牌(直连会 401)，应为 sk-ant-api03-。
+// 若填了自定义 base URL（如 ccr），由那边负责鉴权，这里不拦。
+function isOfficial(baseUrl) {
+  const b = (baseUrl || '').trim();
+  return !b || b.includes('api.anthropic.com');
+}
+function keyWarning(k, baseUrl) {
+  k = (k || '').trim();
+  if (!k || !isOfficial(baseUrl)) return '';
+  if (k.startsWith('sk-ant-oat')) return '⚠️ 这是 Claude Code 订阅令牌(oat)，直连官方会 401。要么填 sk-ant-api03- 付费 key，要么把 base URL 指向你的 ccr（它用订阅令牌转发）。';
+  if (!k.startsWith('sk-ant-api')) return '⚠️ key 格式不像 sk-ant-api03-…，直连官方可能失败。';
+  return '';
+}
+
 // 载入已保存设置 + 上次结果
-chrome.storage.local.get(['apiKey', 'model', 'useSearch', 'lastResult', 'report', 'csv', 'status'], (d) => {
+chrome.storage.local.get(['apiKey', 'baseUrl', 'model', 'useSearch', 'lastResult', 'report', 'csv', 'status', 'genErrorText'], (d) => {
   if (d.apiKey) $('apiKey').value = d.apiKey;
+  if (d.baseUrl) $('baseUrl').value = d.baseUrl;
   if (d.model) $('model').value = d.model;
   $('useSearch').checked = d.useSearch !== false;
   if (!d.apiKey) $('settings').open = true;
+  const w = keyWarning(d.apiKey, d.baseUrl);
+  if (w) { $('settings').open = true; status.textContent = w; }
   if (d.status === 'reportDone' && d.report) showReport(d.report, d.csv || '');
-  else if (d.lastResult) showCollected(d.lastResult);
+  else if (d.lastResult) { showCollected(d.lastResult); if (d.status === 'genError' && d.genErrorText) status.textContent = '抓取成功，但出报告失败：' + d.genErrorText; }
 });
 
 $('save').addEventListener('click', () => {
+  const w = keyWarning($('apiKey').value, $('baseUrl').value);
   chrome.storage.local.set({
     apiKey: $('apiKey').value.trim(),
+    baseUrl: $('baseUrl').value.trim(),
     model: $('model').value,
     useSearch: $('useSearch').checked,
-  }, () => { $('save').textContent = '✅ 已保存'; setTimeout(() => ($('save').textContent = '保存设置'), 1500); });
+  }, () => {
+    $('save').textContent = '✅ 已保存'; setTimeout(() => ($('save').textContent = '保存设置'), 1500);
+    if (w) status.textContent = w;
+  });
 });
 
 go.addEventListener('click', () => {
   // 保存最新设置，确保用到
-  chrome.storage.local.set({ apiKey: $('apiKey').value.trim(), model: $('model').value, useSearch: $('useSearch').checked });
+  chrome.storage.local.set({ apiKey: $('apiKey').value.trim(), baseUrl: $('baseUrl').value.trim(), model: $('model').value, useSearch: $('useSearch').checked });
   go.disabled = true; go.textContent = '抓取中…';
   [dlReport, dlCsv, copyBtn].forEach((b) => (b.style.display = 'none'));
   const hasKey = !!$('apiKey').value.trim();
